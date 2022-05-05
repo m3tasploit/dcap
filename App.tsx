@@ -11,18 +11,19 @@ import {
   subscribeOnPeersUpdates,
   unsubscribeFromPeersUpdates,
   connect,
-  cancelConnect,
-  createGroup,
   removeGroup,
   getAvailablePeers,
   getGroupInfo,
   getConnectionInfo,
-} from "react-native-wifi-p2p";
+  discoverService,
+  startServiceRegistration,
+} from "react-native-wifi-p2p-reborn";
 
 import { Colors } from "react-native/Libraries/NewAppScreen";
 import NetInfo from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import useGun from "./hooks/useGun";
+import WifiManager from "react-native-wifi-reborn";
 
 function login(username: string, password: string) {
   user.auth(username, password, ({ err }: { err: any }) => console.log(err));
@@ -71,16 +72,26 @@ const App = () => {
         console.log("error on initializing", error);
       }
 
+      // try {
+      //   await startDiscoveringPeers();
+      // } catch (error) {
+      //   console.log("error on startdiscover", error);
+      // }
+
       try {
-        await startDiscoveringPeers();
+        await startServiceRegistration({ servicename: "dcap" });
       } catch (error) {
-        console.log("error on startdiscover", error);
+        console.log("error on startServiceRegistration", error);
       }
 
-      subscribeOnPeersUpdates(({ devices }) => {
-        console.log(`New devices available: ${devices}`);
-        setPeers({ devices });
+      discoverService((prop) => {
+        console.log("device", prop);
       });
+
+      // subscribeOnPeersUpdates(({ devices }) => {
+      //   console.log(`New devices available: ${devices}`);
+      //   setPeers({ devices });
+      // });
     }
   };
 
@@ -95,8 +106,8 @@ const App = () => {
     })();
 
     const unsubscribe = NetInfo.addEventListener(async (state) => {
-      if (state.type === "wifi" && state.isConnected) setWifiEnabled(true);
-      else setWifiEnabled(false);
+      const enabled = await WifiManager.isEnabled();
+      setWifiEnabled(enabled);
     });
     return function () {
       unsubscribe();
@@ -107,9 +118,12 @@ const App = () => {
 
   const listPeers = async () => {
     try {
-      await startDiscoveringPeers();
-      const peers = await getAvailablePeers();
-      setPeers(peers);
+      // await startDiscoveringPeers();
+      // const peers = await getAvailablePeers();
+      discoverService((prop) => {
+        console.log("device", prop);
+      });
+      // setPeers(peers);
     } catch (error) {
       console.error("listpeers failed", error);
     }

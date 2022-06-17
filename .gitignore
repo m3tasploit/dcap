@@ -73,3 +73,8 @@ web-build/
 dist/
 
 # @end expo-cli
+
+#misc
+
+nodejs-assets/nodejs-project/node_modules
+tests/

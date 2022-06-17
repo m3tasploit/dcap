@@ -1,268 +1,82 @@
 import "react-native-get-random-values";
-import WebviewCrypto from "react-native-webview-crypto";
+import PolyfillCrypto from "react-native-webview-crypto";
 import * as React from "react";
-import { useEffect, useState } from "react";
-import { PermissionsAndroid, ScrollView, TouchableOpacity } from "react-native";
-import { Button, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import Chats from "./components/Chats";
+import Chat from "./components/Chat";
+import Login from "./components/Login";
+import Profile from "./components/Profile";
+import Settings from "./components/Settings";
 import {
-  initialize,
-  startDiscoveringPeers,
-  stopDiscoveringPeers,
-  subscribeOnPeersUpdates,
-  unsubscribeFromPeersUpdates,
-  connect,
-  removeGroup,
-  getAvailablePeers,
-  getGroupInfo,
-  getConnectionInfo,
-  discoverService,
-  startServiceRegistration,
-} from "react-native-wifi-p2p-reborn";
-
-import { Colors } from "react-native/Libraries/NewAppScreen";
-import NetInfo from "@react-native-community/netinfo";
-import * as Location from "expo-location";
-import useGun from "./hooks/useGun";
-import WifiManager from "react-native-wifi-reborn";
-
-function login(username: string, password: string) {
-  user.auth(username, password, ({ err }: { err: any }) => console.log(err));
-}
-
-function signup(username: string, password: string) {
-  user.create(username, password, ({ err }: { err: any }) => {
-    if (err) {
-      console.log(err);
-    } else {
-      login(username, password);
-    }
-  });
-}
+  Poppins_400Regular,
+  Poppins_400Regular_Italic,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  Poppins_100Thin,
+  useFonts,
+} from "@expo-google-fonts/poppins";
+import { useStore } from "./store/Store";
+import Navbar from "./components/Navbar";
+import { style as tw, tw as twrn } from "./lib/tw";
+import { StatusBar } from "expo-status-bar";
+import { COLOR_PRIMARY, COLOR_PRIMARY_DARK } from "./config/config";
+import { useDeviceContext } from "twrnc";
+import { useColorScheme } from "react-native";
+import { SET_COLOR_SCHEME } from "./store/appReducer";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import nodejs from "nodejs-mobile-react-native";
 
 const App = () => {
-  const isDarkMode = useColorScheme() === "dark";
-  const [wifiGranted, setWifiGranted] = useState(false);
-  const [wifiEnabled, setWifiEnabled] = useState(false);
-  const [peers, setPeers] = useState({ devices: [] });
-  const [connectionStatus, setConnectionStatus] = useState("");
-  const [connectionInfo, setConnectionInfo] = useState("");
-  const [location, setLocation] = useState(null);
-  const [chatMessage, setChatMessage] = useState("no chats");
-  const { db, SEA, user } = useGun();
+  let [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_400Regular_Italic,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_100Thin,
+  });
 
-  const init = async () => {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: "Location permission is required for WiFi connections",
-        message:
-          "This app needs location permission as this is required  " +
-          "to scan for wifi networks.",
-        buttonNegative: "DENY",
-        buttonPositive: "ALLOW",
-      }
-    );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      // You can now use react-native-wifi-reborn
-      setWifiGranted(true);
+  // if (!fontsLoaded) {
+  //   return null;
+  // }
 
-      try {
-        await initialize();
-      } catch (error) {
-        console.log("error on initializing", error);
-      }
-
-      // try {
-      //   await startDiscoveringPeers();
-      // } catch (error) {
-      //   console.log("error on startdiscover", error);
-      // }
-
-      try {
-        await startServiceRegistration({ servicename: "dcap" });
-      } catch (error) {
-        console.log("error on startServiceRegistration", error);
-      }
-
-      discoverService((prop) => {
-        console.log("device", prop);
-      });
-
-      // subscribeOnPeersUpdates(({ devices }) => {
-      //   console.log(`New devices available: ${devices}`);
-      //   setPeers({ devices });
-      // });
-    }
-  };
-
-  useEffect(() => {
-    init();
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setLocation("Permission to access location was denied");
-        return;
-      }
-    })();
-
-    const unsubscribe = NetInfo.addEventListener(async (state) => {
-      const enabled = await WifiManager.isEnabled();
-      setWifiEnabled(enabled);
+  const colorScheme = useColorScheme();
+  const [, dispatch] = useStore();
+  React.useEffect(() => {
+    dispatch({ type: SET_COLOR_SCHEME, payload: colorScheme });
+    nodejs.start("main.js");
+    nodejs.channel.addListener("message", (msg) => {
+      // alert("From node: " + msg);
     });
-    return function () {
-      unsubscribe();
-      stopDiscoveringPeers();
-      unsubscribeFromPeersUpdates();
-    };
-  }, []);
-
-  const listPeers = async () => {
-    try {
-      // await startDiscoveringPeers();
-      // const peers = await getAvailablePeers();
-      discoverService((prop) => {
-        console.log("device", prop);
-      });
-      // setPeers(peers);
-    } catch (error) {
-      console.error("listpeers failed", error);
-    }
-  };
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  const PeerItem: React.FC<{
-    peer: { deviceName: string };
-    onPress: (peer: any) => void;
-  }> = ({ peer, onPress }) => {
-    return (
-      <TouchableOpacity style={styles.btn} onPress={onPress}>
-        <Text>{JSON.stringify(peer)}</Text>
-      </TouchableOpacity>
-    );
-  };
-
-  const handleConnectPress = (device: {
-    deviceAddress: string;
-    deviceName: string;
-  }) => {
-    setConnectionStatus(`connecting to ${device.deviceAddress}`);
-    connect(device.deviceAddress)
-      .then(() => {
-        setConnectionStatus(`Connected to ${device.deviceName}`);
-      })
-      .catch((err: any) => {
-        console.log(err);
-        setConnectionStatus(`Failed connecting to ${device.deviceName}`);
-      });
-  };
-
-  const disconnectPeers = () => {
-    getGroupInfo()
-      .then(() => removeGroup())
-      .then(() => {
-        console.log("Succesfully disconnected!");
-        setConnectionStatus("Disconnected");
-        setPeers({ devices: [] });
-      })
-      .catch((err: any) =>
-        console.error("Something gone wrong. Details: ", err)
-      );
-  };
-
-  const showConnectionInfo = () => {
-    getConnectionInfo()
-      .then((info) => setConnectionInfo(JSON.stringify(info)))
-      .catch((err) => console.error(err));
-  };
-
+  }, [colorScheme]);
+  useDeviceContext(twrn);
+  const Stack = createNativeStackNavigator();
+  const statusBarColor: any =
+    colorScheme === "dark"
+      ? tw(COLOR_PRIMARY_DARK).backgroundColor
+      : tw(COLOR_PRIMARY).backgroundColor;
   return (
-    <ScrollView style={backgroundStyle}>
-      <WebviewCrypto />
-      {!wifiEnabled ? (
-        <Text>Please enable wifi</Text>
-      ) : (
-        <View>
-          <Button title="List peers" onPress={listPeers} />
-          <Button
-            title="Disconnect"
-            onPress={() => {
-              disconnectPeers();
-            }}
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {/* <PolyfillCrypto /> */}
+        <StatusBar backgroundColor={statusBarColor} style="light" />
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{ header: Navbar, animation: "slide_from_right" }}
+        >
+          <Stack.Screen name="Chats" component={Chats} />
+          <Stack.Screen name="Login" component={Login} />
+          <Stack.Screen
+            name="Chat"
+            component={Chat}
+            options={{ headerShown: false }}
           />
-          <Button
-            title="Connection info"
-            onPress={() => {
-              showConnectionInfo();
-            }}
-          />
-          <View style={{ marginTop: 20 }}>
-            {peers.devices.map((peer, index) => (
-              <PeerItem
-                peer={peer}
-                key={index}
-                onPress={() => {
-                  handleConnectPress(peer);
-                }}
-              />
-            ))}
-          </View>
-          <Text>{connectionStatus}</Text>
-          <Text>{connectionInfo}</Text>
-          <Text>{location}</Text>
-          <Button
-            title="Create gun 1"
-            onPress={() => signup("junu", "12345678")}
-          />
-          <Button
-            title="Create gun 2"
-            onPress={() => signup("munu", "12345678")}
-          />
-          <Button
-            title="Login gun 1"
-            onPress={() => login("junu", "12345678")}
-          />
-          <Button
-            title="Login gun 2"
-            onPress={() => login("munu", "12345678")}
-          />
-          <Button
-            title="Load db"
-            onPress={() => {
-              db.get("chat")
-                .map()
-                .on(async (data) => {
-                  const key = "#foo";
-                  const message = await SEA.decrypt(data.what, key);
-                  if (message) setChatMessage(message);
-                });
-            }}
-          />
-          <Button
-            title="Send message"
-            onPress={async () => {
-              const secret = await SEA.encrypt("Hello", "#foo");
-              const message = user.get("all").set({ what: secret });
-              db.get("chat").put(message);
-            }}
-          />
-          <Text>{chatMessage}</Text>
-        </View>
-      )}
-    </ScrollView>
+          <Stack.Screen name="Profile" component={Profile} />
+          <Stack.Screen name="Settings" component={Settings} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
-
-const styles = StyleSheet.create({
-  btn: {
-    backgroundColor: "blue",
-    height: 50,
-    color: "white",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
 
 export default App;

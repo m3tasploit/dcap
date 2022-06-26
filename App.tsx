@@ -1,7 +1,7 @@
 import "react-native-get-random-values";
 import PolyfillCrypto from "react-native-webview-crypto";
 import * as React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useFocusEffect } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Chats from "./components/Chats";
 import Chat from "./components/Chat";
@@ -16,18 +16,36 @@ import {
   Poppins_100Thin,
   useFonts,
 } from "@expo-google-fonts/poppins";
-import { useStore } from "./store/Store";
+import { useAppDispatch } from "./store/Store";
 import Navbar from "./components/Navbar";
 import { style as tw, tw as twrn } from "./lib/tw";
 import { StatusBar } from "expo-status-bar";
-import { COLOR_PRIMARY, COLOR_PRIMARY_DARK } from "./config/config";
-import { useDeviceContext } from "twrnc";
-import { useColorScheme } from "react-native";
-import { SET_COLOR_SCHEME } from "./store/appReducer";
+import {
+  COLOR_PRIMARY,
+  COLOR_PRIMARY_DARK,
+  COLOR_SECONDARY_DARK,
+} from "./config/config";
+import { useAppColorScheme, useDeviceContext } from "twrnc";
+import { Alert, BackHandler, useColorScheme } from "react-native";
+import { setColorScheme, SET_COLOR_SCHEME } from "./store/appReducer";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import nodejs from "nodejs-mobile-react-native";
+import Connect from "./components/Connect";
+import {
+  disconnectFromWifiP2pPeer,
+  removeWifiP2pGroup,
+  stopSearchingPeers,
+} from "./lib/peer";
+import { stopApp } from "react-native-stop-app";
 
+export type RootStackParamList = {
+  Connect: undefined;
+  Chats: undefined;
+  Profile: undefined;
+  Settings: undefined;
+  Login: undefined;
+};
 const App = () => {
+  useDeviceContext(twrn, { withDeviceColorScheme: true });
   let [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_400Regular_Italic,
@@ -39,31 +57,62 @@ const App = () => {
   // if (!fontsLoaded) {
   //   return null;
   // }
-
-  const colorScheme = useColorScheme();
-  const [, dispatch] = useStore();
+  const colorScheme = useColorScheme() + "";
+  const dispatch = useAppDispatch();
   React.useEffect(() => {
-    dispatch({ type: SET_COLOR_SCHEME, payload: colorScheme });
-    nodejs.start("main.js");
-    nodejs.channel.addListener("message", (msg) => {
-      // alert("From node: " + msg);
-    });
+    const myFunc = async () => {
+      dispatch(setColorScheme(colorScheme));
+    };
+    myFunc();
   }, [colorScheme]);
-  useDeviceContext(twrn);
+
+  React.useEffect(() => {
+    const backAction = () => {
+      Alert.alert("Hold on!", "Are you sure you want to go exit?", [
+        {
+          text: "Cancel",
+          onPress: () => null,
+          style: "cancel",
+        },
+        {
+          text: "YES",
+          onPress: async () => {
+            try {
+              await stopSearchingPeers();
+              await removeWifiP2pGroup();
+              await disconnectFromWifiP2pPeer();
+              stopApp();
+            } catch (error) {
+              console.log(error);
+            }
+          },
+        },
+      ]);
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+    return () => backHandler.remove();
+  }, []);
+
   const Stack = createNativeStackNavigator();
   const statusBarColor: any =
     colorScheme === "dark"
-      ? tw(COLOR_PRIMARY_DARK).backgroundColor
+      ? tw(COLOR_SECONDARY_DARK).backgroundColor
       : tw(COLOR_PRIMARY).backgroundColor;
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        {/* <PolyfillCrypto /> */}
+        <PolyfillCrypto />
         <StatusBar backgroundColor={statusBarColor} style="light" />
         <Stack.Navigator
-          initialRouteName="Login"
+          initialRouteName="Connect"
           screenOptions={{ header: Navbar, animation: "slide_from_right" }}
         >
+          <Stack.Screen name="Connect" component={Connect} />
           <Stack.Screen name="Chats" component={Chats} />
           <Stack.Screen name="Login" component={Login} />
           <Stack.Screen

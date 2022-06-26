@@ -10,65 +10,20 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { COLOR_SECONDARY_DARK } from "../config/config";
+import { COLOR_PRIMARY_DARK, COLOR_SECONDARY_DARK } from "../config/config";
 import { style as tw } from "../lib/tw";
-import { useStore } from "../store/Store";
+import { useAppSelector } from "../store/Store";
 
 const chats = [
   {
     id: 1,
-    name: "David",
-    lastMessage: "Hello",
-  },
-  {
-    id: 2,
-    name: "John",
-    lastMessage: "Where are you",
-  },
-  {
-    id: 3,
-    name: "Michael Jackson",
-    lastMessage: "Hee hee intensifies",
-  },
-  {
-    id: 4,
-    name: "David Beckahm",
-    lastMessage: "Quit football",
-  },
-  {
-    id: 5,
-    name: "Harry styles",
-    lastMessage: "Watermelon",
-  },
-  {
-    id: 6,
-    name: "Liam pain",
-    lastMessage: "Im still in pain",
-  },
-  {
-    id: 7,
-    name: "Tim henson",
-    lastMessage: "Playing god",
-  },
-  {
-    id: 8,
-    name: "Ichika nito",
-    lastMessage: "Vibing",
-  },
-  {
-    id: 9,
-    name: "Sunga jung",
-    lastMessage: "New song out",
-  },
-  {
-    id: 10,
-    name: "Jacky chan",
-    lastMessage: "How's the kungfu",
+    name: "Everyone",
+    lastMessage: "",
   },
 ];
 
 const Chats = ({ navigation }: { navigation: any }) => {
-  const [state] = useStore();
+  const colorScheme = useAppSelector((state) => state.app.colorScheme);
 
   const renderItem = ({ item: chat }: { item: any }) => (
     <Pressable
@@ -97,7 +52,7 @@ const Chats = ({ navigation }: { navigation: any }) => {
             fontSize: 12,
           })}
         >
-          04:20 PM
+          {/* time */}
         </Text>
         <View
           style={tw(
@@ -105,7 +60,7 @@ const Chats = ({ navigation }: { navigation: any }) => {
           )}
         >
           <Text style={tw("font-app-semi text-white", { fontSize: 12 })}>
-            5
+            {/* new messages count */}
           </Text>
         </View>
       </View>
@@ -114,7 +69,7 @@ const Chats = ({ navigation }: { navigation: any }) => {
 
   return (
     <SafeAreaView
-      style={tw(`h-full dark:${COLOR_SECONDARY_DARK} bg-white`)}
+      style={tw(`h-full dark:${COLOR_PRIMARY_DARK} bg-orange-100`)}
       edges={["right", "bottom", "left"]}
     >
       <FlatList

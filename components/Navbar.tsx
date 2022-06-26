@@ -12,7 +12,7 @@ import { style as tw } from "../lib/tw";
 const Navbar = () => {
   return (
     <SafeAreaView
-      style={tw(`pb-3 dark:${COLOR_PRIMARY_DARK} ${COLOR_PRIMARY}`)}
+      style={tw(`pb-3 dark:${COLOR_SECONDARY_DARK} ${COLOR_PRIMARY}`)}
     >
       <Text style={tw("font-app-semi text-xl ml-3 mt-3 text-white")}>
         {APP_NAME}

@@ -1,16 +1,21 @@
+import { createSlice } from "@reduxjs/toolkit";
+
 export const LOGIN = "APP/AUTH/LOGIN";
 
-export const initialState = {
+export interface AuthState {
+  login: [];
+}
+
+export const initialState: AuthState = {
   login: [],
 };
 
-export type AuthState = typeof initialState;
+const authSlice = createSlice({
+  name: "auth",
+  initialState,
+  reducers: {},
+});
 
-export const authReducer = (state = initialState, action: { type: string }) => {
-  switch (action.type) {
-    case LOGIN:
-      return {
-        ...state,
-      };
-  }
-};
+export const {} = authSlice.actions;
+
+export default authSlice.reducer;

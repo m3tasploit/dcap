@@ -36,6 +36,7 @@ import {
   stopSearchingPeers,
 } from "./lib/peer";
 import { stopApp } from "react-native-stop-app";
+import { startDiscoveringPeers } from "react-native-wifi-p2p-reborn";
 
 export type RootStackParamList = {
   Connect: undefined;
@@ -78,7 +79,12 @@ const App = () => {
           text: "YES",
           onPress: async () => {
             try {
-              await stopSearchingPeers();
+              stopSearchingPeers();
+            } catch (error) {
+              console.log(error);
+            }
+
+            try {
               await removeWifiP2pGroup();
               await disconnectFromWifiP2pPeer();
               stopApp();

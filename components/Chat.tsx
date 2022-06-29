@@ -7,14 +7,19 @@ import {
   COLOR_PRIMARY_DARK,
   COLOR_SECONDARY_DARK,
 } from "../config/config";
-import { GUN, gundb, user } from "../lib/gun";
+import { generateGroupId, GUN, gundb, user } from "../lib/gun";
 import { style as tw } from "../lib/tw";
 import { useAppSelector } from "../store/Store";
 import MessageInput from "./MessageInput";
 import OptionsIcon from "./OptionsIcon";
 
 type RootStackParamList = {
-  Chat: { id: number; name: string };
+  Chat: {
+    name: string;
+    isGroup: boolean;
+    chatRoomKey: string;
+    hisPubKey: string;
+  };
 };
 
 const Header = ({ name, navigation }: { name: string; navigation: any }) => {
@@ -58,7 +63,7 @@ const Header = ({ name, navigation }: { name: string; navigation: any }) => {
   );
 };
 
-const ChatMessage = ({ item }: { item: any }) => {
+const ChatMessage = ({ item, navigation }: { item: any; navigation: any }) => {
   return (
     <View
       style={tw(
@@ -69,12 +74,26 @@ const ChatMessage = ({ item }: { item: any }) => {
         }`
       )}
     >
-      {item.received && (
-        <Pressable android_ripple={{ color: "rgb(107 114 128)" }}>
+      {item.received && item.isGroup && (
+        <Pressable
+          android_ripple={{ color: "rgb(107 114 128)" }}
+          onPress={() => {
+            const myPubKey = user.is?.pub;
+            if (myPubKey && item.userPubKey) {
+              let chatRoomKey = generateGroupId(myPubKey, item.userPubKey);
+              navigation.push("Chat", {
+                name: item.from,
+                isGroup: false,
+                chatRoomKey,
+                hisPubKey: item.userPubKey,
+              });
+            }
+          }}
+        >
           <Text
             style={tw(`text-base dark:text-white text-black font-app-semi`)}
           >
-            {item.useralias}
+            {item.from}
           </Text>
         </Pressable>
       )}
@@ -97,38 +116,51 @@ const Chat = ({
   const colorScheme = useAppSelector((state) => state.app.colorScheme);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
-  const { id, name = "Everyone" } = route.params;
+  const {
+    name = "Everyone",
+    isGroup = true,
+    chatRoomKey,
+    hisPubKey,
+  } = route.params;
   const myalias = user.is?.alias;
+  const myPubKey = user.is?.pub;
   const sortedMessages = [...messages].sort((a, b) => a.time - b.time);
   const flatListRef = useRef<FlatList | null>(null);
 
   useEffect(() => {
     try {
-      gundb
-        .get(name)
-        .map()
-        .once(async (data, id) => {
-          let received = false;
-          if (data.useralias !== myalias) {
-            received = true;
-          }
-          setMessages((prev) => [
-            ...prev,
-            {
-              message: data.message,
-              time: parseInt(id),
-              received,
-              useralias: data.useralias,
-              id: id + Math.random() * 100,
-            },
-          ]);
-        });
+      if (chatRoomKey) {
+        gundb
+          .get(chatRoomKey)
+          .map()
+          .once(async (data, id) => {
+            if (data) {
+              let received = false;
+              if (data.from !== myalias) {
+                received = true;
+              }
+              let timestamp = GUN.state.is(data, "message");
+              setMessages((prev) => [
+                ...prev,
+                {
+                  message: data.message,
+                  time: timestamp,
+                  received,
+                  from: data.from,
+                  id,
+                  isGroup: isGroup,
+                  userPubKey: data.userPubKey ? data.userPubKey : "",
+                },
+              ]);
+            }
+          });
+      }
     } catch (error) {
       console.log("error while loading messages", error);
     }
 
     return () => {
-      gundb.get(name).off();
+      gundb.get(chatRoomKey).off();
     };
   }, []);
 
@@ -136,7 +168,7 @@ const Chat = ({
     if (flatListRef.current) {
       flatListRef.current.scrollToEnd({ animated: true });
     }
-  }, [sortedMessages]);
+  }, [messages]);
 
   return (
     <SafeAreaView style={tw(`h-full dark:${COLOR_PRIMARY_DARK} bg-orange-100`)}>
@@ -144,7 +176,9 @@ const Chat = ({
 
       <FlatList
         data={sortedMessages}
-        renderItem={ChatMessage}
+        renderItem={({ item }) => (
+          <ChatMessage item={item} navigation={navigation} />
+        )}
         keyExtractor={(item) => "" + item.id}
         contentContainerStyle={tw("p-2 pb-0")}
         ref={flatListRef}
@@ -152,14 +186,44 @@ const Chat = ({
       <MessageInput
         onChangeMessage={(text) => setMessage(text)}
         onSendClick={() => {
-          if (user.is) {
-            const index = new Date().getTime().toString();
-            const msg = {
-              message,
-              user: user.is.pub,
-              useralias: user.is.alias,
-            };
-            gundb.get(name).get(index).put(msg);
+          if (user.is && message) {
+            if (isGroup) {
+              gundb.get("chats").get(name).put({
+                title: name,
+                isGroup: true,
+                lastMessage: message,
+              });
+              gundb.get(name).set({
+                message,
+                from: user.is.alias,
+                userPubKey: user.is.pub,
+              });
+            } else {
+              if (myPubKey && hisPubKey) {
+                let myAlias = user.is.alias.toString();
+                let hisAlias = name;
+                let title = generateGroupId(myAlias, hisAlias);
+                let chatObj = {
+                  title,
+                  isGroup: false,
+                  lastMessage: message,
+                  chatRoomKey,
+                };
+
+                gundb
+                  .get(myPubKey)
+                  .get("groups")
+                  .put({ [chatRoomKey]: chatObj });
+                gundb
+                  .get(hisPubKey)
+                  .get("groups")
+                  .put({ [chatRoomKey]: chatObj });
+
+                gundb
+                  .get(chatRoomKey)
+                  .set({ from: myAlias, to: hisAlias, message });
+              }
+            }
             setMessage("");
           }
         }}

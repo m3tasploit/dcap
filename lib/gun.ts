@@ -7,7 +7,7 @@ import "gun/lib/store.js";
 const asyncStore = require("gun/lib/ras.js");
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GUN_SERVER_URL } from "../config/config";
-import { GunUser, IGunInstance, IGunUserInstance, ISEAPair } from "gun";
+import { GunUser, IGun, IGunInstance, IGunUserInstance, ISEAPair } from "gun";
 import { WifiP2pDeviceType } from "./peer";
 import { AppDispatch } from "../store/Store";
 
@@ -20,6 +20,13 @@ export interface PeerType {
 export interface IGunInstanceNew extends IGunInstance {
   user(): IGunUserInstance;
   user(pub: string): IGunUserInstance;
+}
+
+export interface IGunNew extends IGun {
+  state: {
+    (): number;
+    is(n: any, k: string): number;
+  };
 }
 
 export type UserCreateResponse = { ok: 0; pub: string } | { err: string };
@@ -40,7 +47,7 @@ export const gundb: IGunInstanceNew = Gun({
 });
 export let user = gundb.user();
 export const SEA = sea;
-export const GUN = Gun;
+export const GUN = Gun as IGunNew;
 
 export const fireGun = () => {
   try {
@@ -84,4 +91,8 @@ export const signup = (
       login(username, password, cb);
     }
   });
+};
+
+export const generateGroupId = (a: string, b: string) => {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
 };
